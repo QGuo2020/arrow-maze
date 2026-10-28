@@ -883,6 +883,19 @@ input:focus-visible {
   line-height: 1.4;
 }
 
+.setting-copy .setting-credit {
+  margin-top: 6px;
+  font-size: 9.5px;
+  line-height: 1.55;
+  opacity: 0.78;
+}
+
+.setting-copy .setting-credit a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .setting-copy code {
   padding: 1px 4px;
   border: 1px solid rgba(255, 255, 255, 0.08);

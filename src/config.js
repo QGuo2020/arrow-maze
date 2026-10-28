@@ -120,7 +120,7 @@ export const CONFIG = Object.freeze({
     hints: 3,
     timeLimitMinutes: 6,
     // 不再默认播放内置合成音乐；由玩家在设置里选择本地音乐
-    bgm: false,
+    bgm: true,
     bgmVolume: 0.4,
     musicTrackId: null,
     sfx: true,

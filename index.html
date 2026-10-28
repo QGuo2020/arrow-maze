@@ -90,7 +90,7 @@
             id="musicBtn"
             class="icon-button"
             type="button"
-            aria-label="开关背景音乐"
+            aria-label="开关音乐"
             aria-pressed="true"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -290,8 +290,13 @@
 
             <div class="setting-row">
               <div class="setting-copy">
-                <label for="bgmToggle">背景音乐</label>
-                <p>选择你自己的本地音乐，文件保存在浏览器内</p>
+                <label for="bgmToggle">音乐</label>
+                <p>默认播放互动乐章《卡农》；选择本地音乐后优先播放本地音乐</p>
+                <p class="setting-credit">
+                  曲目：帕赫贝尔《D 大调卡农》（公版）· 钢琴采样：
+                  <a href="https://archive.org/details/SalamanderGrandPianoV3" target="_blank" rel="noreferrer">Salamander Grand Piano V3</a>
+                  · Alexander Holm · <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a>
+                </p>
               </div>
               <label class="switch">
                 <input id="bgmToggle" type="checkbox" />
@@ -307,8 +312,8 @@
             <div class="music-library">
               <div class="music-library-head">
                 <div>
-                  <span class="setting-title">音乐库</span>
-                  <p>可选择音乐文件，或直接选择整个音乐文件夹</p>
+                  <span class="setting-title">本地音乐（可选）</span>
+                  <p>导入后会覆盖互动乐章；文件仅保存在当前浏览器</p>
                 </div>
                 <div class="music-library-head-actions">
                   <button id="pickMusicBtn" class="mini-button" type="button">选择文件</button>

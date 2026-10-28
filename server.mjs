@@ -24,7 +24,10 @@ const MIME_TYPES = {
   '.jpg': 'image/jpeg',
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2'
+  '.woff2': 'font/woff2',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav'
 };
 
 /** 把 URL 安全地映射到项目目录内的文件。 */

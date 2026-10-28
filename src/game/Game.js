@@ -362,6 +362,7 @@ export class Game {
     this.closeResult();
     this.camera.setBoard(this.board);
     this.saveProgress(this.levelNumber);
+    this.audio.setLevelTrack(this.levelNumber);
     this.updateHUD();
     this.syncZoomUI();
     this.setCanvasCursor('grab');
@@ -1175,8 +1176,7 @@ export class Game {
     const hintsChanged = hints !== previousSettings.hints;
     const timeChanged = timeLimitMinutes !== previousSettings.timeLimitMinutes;
 
-    const hasMusic = this.musicTracks.length > 0;
-    const wantsBgm = Boolean(this.ui.bgmToggle.checked) && hasMusic;
+    const wantsBgm = Boolean(this.ui.bgmToggle.checked);
 
     this.settings = {
       lives,
@@ -1191,10 +1191,6 @@ export class Game {
       theme: this.theme
     };
 
-    if (this.ui.bgmToggle.checked && !hasMusic) {
-      this.ui.bgmToggle.checked = false;
-      this.showToast('请先在音乐库中选择一首音乐', '', 1800);
-    }
     this.guides = this.settings.guides;
 
     if (livesChanged) {
@@ -1279,12 +1275,6 @@ export class Game {
   }
 
   handleMusicToggle() {
-    if (this.musicTracks.length === 0) {
-      this.showToast('请先在音乐库中选择音乐', '', 1800);
-      this.openSettings();
-      return;
-    }
-
     this.audio.unlock();
     this.settings.bgm = !this.settings.bgm;
     this.audio.applySettings(this.settings);
@@ -1300,11 +1290,6 @@ export class Game {
   async initMusicLibrary() {
     await this.musicLibrary.open();
     await this.refreshMusicLibrary({ persist: false });
-    if (!this.musicTracks.length && this.settings.bgm) {
-      this.settings.bgm = false;
-      this.saveSettings();
-      this.updateHUD();
-    }
   }
 
   async refreshMusicLibrary({ selectId = null, persist = true, play = null } = {}) {
@@ -1324,7 +1309,6 @@ export class Game {
       if (this.ui.removeMusicBtn) this.ui.removeMusicBtn.disabled = true;
       this.setActiveMusicTrack(null);
       this.settings.musicTrackId = null;
-      this.settings.bgm = false;
 
       if (this.ui.musicLibraryHint) {
         this.ui.musicLibraryHint.textContent = this.musicLibrary.persistent
@@ -1368,7 +1352,6 @@ export class Game {
         URL.revokeObjectURL(this.musicObjectUrl);
         this.musicObjectUrl = null;
       }
-      this.audio.stopBgm();
       return;
     }
 
@@ -1752,7 +1735,7 @@ export class Game {
     }
     if (this.ui.guidesToggle) this.ui.guidesToggle.checked = this.guides;
 
-    const musicActive = this.settings.bgm && this.musicTracks.length > 0;
+    const musicActive = Boolean(this.settings.bgm);
     for (const button of [this.ui.musicBtn, this.ui.musicToolBtn]) {
       if (!button) continue;
       button.classList.toggle('is-off', !musicActive);
@@ -1760,7 +1743,7 @@ export class Game {
       button.setAttribute('aria-pressed', String(musicActive));
       button.setAttribute(
         'aria-label',
-        musicActive ? '关闭背景音乐' : '选择或开启背景音乐'
+        musicActive ? '关闭背景音乐' : '开启互动乐章或本地音乐'
       );
     }
     if (this.ui.musicToolState) {
