@@ -643,6 +643,100 @@ input:focus-visible {
   color: #fff1c7;
 }
 
+/* ---------- 关键突破 ---------- */
+
+.key-burst-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.key-burst {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 9px 16px 8px;
+  border: 1px solid rgba(255, 209, 102, 0.42);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 209, 102, 0.18), transparent 65%),
+    rgba(7, 15, 27, 0.92);
+  box-shadow:
+    0 0 34px rgba(255, 209, 102, 0.17),
+    0 14px 32px rgba(0, 0, 0, 0.38);
+  color: #fff7df;
+  text-align: center;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.78);
+  animation: key-burst 980ms cubic-bezier(0.2, 0.75, 0.25, 1) forwards;
+}
+
+.key-burst.is-mega {
+  border-color: rgba(93, 242, 208, 0.5);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(93, 242, 208, 0.2), transparent 68%),
+    rgba(7, 15, 27, 0.94);
+  box-shadow:
+    0 0 42px rgba(93, 242, 208, 0.2),
+    0 14px 32px rgba(0, 0, 0, 0.4);
+}
+
+.key-burst-icon {
+  color: #ffd166;
+  font-size: 21px;
+  line-height: 0.9;
+  text-shadow: 0 0 16px rgba(255, 209, 102, 0.55);
+}
+
+.key-burst.is-mega .key-burst-icon {
+  color: #7dffe6;
+  text-shadow: 0 0 18px rgba(93, 242, 208, 0.62);
+}
+
+.key-burst strong {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.key-burst small {
+  color: #9ff7e3;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+@keyframes key-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -42%) scale(0.72);
+  }
+  16% {
+    opacity: 1;
+    transform: translate(-50%, -56%) scale(1.08);
+  }
+  34% {
+    opacity: 1;
+    transform: translate(-50%, -58%) scale(1);
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -88%) scale(1);
+  }
+}
+
 /* ---------- Dialog / 设置 ---------- */
 
 .modal {
@@ -1392,6 +1486,35 @@ input:focus-visible {
 :root[data-theme="light"] .toast.is-hint {
   border-color: rgba(168, 107, 22, 0.28);
   color: #85530f;
+}
+
+:root[data-theme="light"] .key-burst {
+  border-color: rgba(168, 107, 22, 0.4);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 193, 79, 0.26), transparent 65%),
+    rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 0 30px rgba(168, 107, 22, 0.12),
+    0 14px 32px rgba(52, 76, 103, 0.18);
+  color: #203247;
+}
+
+:root[data-theme="light"] .key-burst.is-mega {
+  border-color: rgba(11, 143, 120, 0.42);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(11, 143, 120, 0.16), transparent 68%),
+    rgba(255, 255, 255, 0.97);
+  box-shadow:
+    0 0 34px rgba(11, 143, 120, 0.14),
+    0 14px 32px rgba(52, 76, 103, 0.2);
+}
+
+:root[data-theme="light"] .key-burst strong {
+  color: #1b2a3a;
+}
+
+:root[data-theme="light"] .key-burst small {
+  color: #087b68;
 }
 
 :root[data-theme="light"] .modal {

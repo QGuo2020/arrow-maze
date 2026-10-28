@@ -115,6 +115,45 @@ export class CollisionSystem {
   }
 
   /**
+   * 返回所有会挡住 moving 头部射线的线（不关心谁最近）。
+   * 用于构建依赖图、判断一条线清掉后能释放多少条线。
+   */
+  findRayBlockers(moving, staticLines, maxDistance) {
+    if (!moving || !staticLines || staticLines.length === 0) return [];
+
+    const head = moving.points[moving.points.length - 1];
+    const direction = moving.axis;
+    const origin = {
+      x: head.x + direction.x * CONFIG.line.arrowLength,
+      y: head.y + direction.y * CONFIG.line.arrowLength
+    };
+    const blockers = [];
+
+    for (const staticLine of staticLines) {
+      if (!staticLine || staticLine === moving || staticLine.cleared) continue;
+      const radius = this.contactDistance(moving, staticLine);
+      const points = staticLine.points;
+
+      for (let index = 0; index < points.length - 1; index += 1) {
+        const hitDistance = rayCapsuleFirstHit(
+          origin,
+          direction,
+          points[index],
+          points[index + 1],
+          radius,
+          maxDistance
+        );
+        if (Number.isFinite(hitDistance)) {
+          blockers.push(staticLine);
+          break;
+        }
+      }
+    }
+
+    return blockers;
+  }
+
+  /**
    * 检查箭头前方的射线是否会撞到自己的尾巴/身体。
    *
    * 生成器必须排除这种线：它虽然不会和其他线相撞，但蛇形出发时

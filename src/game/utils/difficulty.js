@@ -26,6 +26,24 @@ export function getSegmentBoost(levelNumber) {
   return Math.min(4, Math.floor((level - 1) / 2));
 }
 
+/**
+ * 多高影响力才算“关键点”。
+ * 影响力 = 有多少条线被它挡住；门槛越高，关键事件越少。
+ */
+export function getKeyDependencyThreshold(levelNumber) {
+  const level = Math.max(1, Math.floor(Number(levelNumber) || 1));
+  return Math.min(20, 10 + (level - 1) * 2);
+}
+
+/**
+ * 开局关键点目标数量：前期多、后期少。
+ * 生成器会优先选择接近这个目标的布局。
+ */
+export function getKeyStartTarget(levelNumber) {
+  const level = Math.max(1, Math.floor(Number(levelNumber) || 1));
+  return Math.max(1, 3 - Math.floor((level - 1) / 3));
+}
+
 /** 把秒数格式化为 02:20 这样的倒计时文本。 */
 export function formatTime(seconds) {
   const total = Math.max(0, Math.ceil(Number(seconds) || 0));

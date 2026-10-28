@@ -226,6 +226,29 @@ export class AudioManager {
     });
   }
 
+  playKey() {
+    if (!this.canPlaySfx()) return;
+    const now = this.ctx.currentTime;
+    // 关键突破：一个轻快的上行小音阶，不刺耳
+    [659.25, 880, 1174.66].forEach((frequency, index) => {
+      this.tone({
+        frequency,
+        duration: 0.24,
+        type: 'sine',
+        level: 0.032 - index * 0.004,
+        when: now + index * 0.075
+      });
+    });
+    this.noiseSweep({
+      startFrequency: 2800,
+      endFrequency: 1800,
+      duration: 0.12,
+      level: 0.012,
+      q: 1.2,
+      when: now
+    });
+  }
+
   playHint() {
     if (!this.canPlaySfx()) return;
     const now = this.ctx.currentTime;

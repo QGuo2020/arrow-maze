@@ -1,7 +1,12 @@
 import { CONFIG } from '../../config.js';
 import { CollisionSystem } from './CollisionSystem.js';
 import { getPolylineBounds } from '../utils/geometry.js';
-import { getFreeLineTarget, getSegmentBoost } from '../utils/difficulty.js';
+import {
+  getFreeLineTarget,
+  getKeyDependencyThreshold,
+  getKeyStartTarget,
+  getSegmentBoost
+} from '../utils/difficulty.js';
 
 const DIRECTION_NAMES = ['right', 'down', 'left', 'up'];
 const DIRECTION_STEPS = [
@@ -33,17 +38,33 @@ export function generateLevel(levelNumber, options = {}) {
   const attempts = options.attempts ?? 4;
   const targetFree = options.targetFree ?? getFreeLineTarget(level);
   const segmentBoost = options.segmentBoost ?? getSegmentBoost(level);
+  const keyTarget = options.keyTarget ?? getKeyStartTarget(level);
+  const keyThreshold =
+    options.keyThreshold ?? getKeyDependencyThreshold(level);
+  const collision = new CollisionSystem();
   let best = null;
   let bestScore = Number.NEGATIVE_INFINITY;
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const result = generateOnce(level, attempt, targetFree, segmentBoost);
-    const freeGap = Math.max(0, targetFree - result.freeCount);
-    // 优先选择安全线更接近目标、线条又尽量多的关卡，
-    // 避免同一关因随机性突然变简单或变难。
-    const score = result.lines.length - freeGap * 1000;
+    const quality = analyzeLevelQuality(
+      result.lines,
+      collision,
+      keyThreshold
+    );
+    const freeGap = Math.abs(quality.freeCount - targetFree);
+    const keyGap = Math.abs(quality.keyStartCount - keyTarget);
+    // 优先匹配安全点/关键点预算，再选择线条更多的布局。
+    // 这样高关卡不是单纯“线更多”，而是安全入口和关键突破更少。
+    const score =
+      result.lines.length * 0.5 - freeGap * 1000 - keyGap * 120;
     if (score > bestScore) {
-      best = result;
+      best = {
+        ...result,
+        freeCount: quality.freeCount,
+        keyStartCount: quality.keyStartCount,
+        keyThreshold
+      };
       bestScore = score;
     }
   }
@@ -58,7 +79,9 @@ export function generateLevel(levelNumber, options = {}) {
     board: best.board,
     lines: best.lines,
     solution: best.solution,
-    freeCount: best.freeCount
+    freeCount: best.freeCount,
+    keyStartCount: best.keyStartCount,
+    keyThreshold: best.keyThreshold
   };
 }
 
@@ -447,6 +470,40 @@ export function isTooCoiled(line) {
   if (turns >= 5 && compactness >= 2.35 && small) return true;
   if (turns >= 4 && compactness >= 2.1 && small) return true;
   return false;
+}
+
+/**
+ * 计算开局安全点和关键点数量。
+ *
+ * 关键点：一条开局可点的线，直接挡住至少 `keyThreshold` 条其他线的路径。
+ * 它是依赖图里的高影响力节点，而不是预先标出来的答案。
+ */
+function analyzeLevelQuality(lines, collision, keyThreshold) {
+  const blockersByLine = new Map();
+  for (const line of lines) {
+    blockersByLine.set(
+      line,
+      collision.findRayBlockers(line, lines, 3600)
+    );
+  }
+
+  let freeCount = 0;
+  let keyStartCount = 0;
+
+  for (const line of lines) {
+    if (blockersByLine.get(line).length > 0) continue;
+    freeCount += 1;
+
+    let dependents = 0;
+    for (const other of lines) {
+      if (other === line || other.cleared) continue;
+      if (blockersByLine.get(other).includes(line)) dependents += 1;
+    }
+
+    if (dependents >= keyThreshold) keyStartCount += 1;
+  }
+
+  return { freeCount, keyStartCount };
 }
 
 function topologicalOrder(lines, graph) {

@@ -20,6 +20,8 @@ import {
   calculateTimeLimit,
   formatTime,
   getFreeLineTarget,
+  getKeyDependencyThreshold,
+  getKeyStartTarget,
   getSegmentBoost
 } from '../src/game/utils/difficulty.js';
 
@@ -409,6 +411,11 @@ test('关卡生成器默认生成密集、四方向且可解的关卡', () => {
   assert.ok(freeCount <= 25, `too many free lines: ${freeCount}`);
   assert.ok(freeCount >= 1, 'level needs at least one safe line');
   assert.equal(data.freeCount, freeCount);
+  assert.ok(
+    data.keyStartCount >= 0 && data.keyStartCount <= data.freeCount,
+    'key starts must be a subset of free lines'
+  );
+  assert.equal(data.keyThreshold, getKeyDependencyThreshold(1));
   for (let index = 0; index < data.lines.length; index += 1) {
     const line = data.lines[index];
     const others = data.lines.filter((_, otherIndex) => otherIndex !== index);
@@ -490,13 +497,20 @@ test('限时默认 6 分钟起，随关卡/线数增加，并支持调整基础�
   assert.equal(formatTime(0), '00:00');
 });
 
-test('难度曲线：安全线逐级减少，线条逐级变长', () => {
+test('难度曲线：安全线逐级减少，线条逐级变长，关键点逐级变少', () => {
   assert.equal(getFreeLineTarget(1), 8);
   assert.ok(getFreeLineTarget(3) < getFreeLineTarget(1));
   assert.ok(getFreeLineTarget(7) < getFreeLineTarget(3));
   assert.equal(getFreeLineTarget(30), 3);
   assert.ok(getSegmentBoost(10) > getSegmentBoost(1));
   assert.equal(getSegmentBoost(30), 4);
+  assert.equal(getKeyDependencyThreshold(1), 10);
+  assert.ok(
+    getKeyDependencyThreshold(10) > getKeyDependencyThreshold(1)
+  );
+  assert.equal(getKeyDependencyThreshold(30), 20);
+  assert.ok(getKeyStartTarget(1) > getKeyStartTarget(7));
+  assert.equal(getKeyStartTarget(30), 1);
 });
 
 test('紧凑螺旋/死结线条会被质检过滤', () => {

@@ -9,7 +9,11 @@ import { LineRenderer } from './render/LineRenderer.js';
 import { CollisionSystem } from './systems/CollisionSystem.js';
 import { generateLevel } from './systems/LevelGenerator.js';
 import { clamp } from './utils/geometry.js';
-import { calculateTimeLimit, formatTime } from './utils/difficulty.js';
+import {
+  calculateTimeLimit,
+  formatTime,
+  getKeyDependencyThreshold
+} from './utils/difficulty.js';
 
 const HEART_PATH =
   'M12 21s-7.5-4.6-9.7-9.1C.7 8.5 2.4 5 5.8 4.4 8 4 10 5.2 12 7.2c2-2 4-3.2 6.2-2.8 3.4.6 5.1 4.1 3.5 7.5C19.5 16.4 12 21 12 21Z';
@@ -76,6 +80,9 @@ export class Game {
     this.timerLow = false;
     this.timerStarted = false;
     this.timedOut = false;
+    this.keyThreshold = 2;
+    this.keyStartCount = 0;
+    this.safeStartCount = 0;
 
     this.activePointers = new Map();
     this.gesture = null;
@@ -318,6 +325,18 @@ export class Game {
         })
     );
 
+    this.keyThreshold =
+      data.keyThreshold ?? getKeyDependencyThreshold(this.levelNumber);
+    this.buildDependencyMap();
+    this.safeStartCount = this.lines.filter(
+      (line) => line.blockers.length === 0
+    ).length;
+    this.keyStartCount = this.lines.filter(
+      (line) =>
+        line.blockers.length === 0 &&
+        this.countDependents(line) >= this.keyThreshold
+    ).length;
+
     this.maxLives = normalizeLives(this.settings.lives);
     this.lives = this.maxLives === -1 ? Infinity : this.maxLives;
     this.hintsRemaining = normalizeHints(this.settings.hints);
@@ -343,15 +362,79 @@ export class Game {
     this.syncZoomUI();
     this.setCanvasCursor('grab');
 
-    this.ui.liveStatus.textContent = `第 ${this.levelNumber} 关，共 ${this.totalLines} 条箭头，生命 ${this.describeLives()}`;
+    this.ui.liveStatus.textContent = `第 ${this.levelNumber} 关，共 ${this.totalLines} 条箭头，安全点 ${this.safeStartCount}，关键点 ${this.keyStartCount}，生命 ${this.describeLives()}`;
 
     if (announce) {
       if (!readTutorialFlag()) {
         writeTutorialFlag();
         this.showToast('点击箭头清除 · 拖动平移 · 双指缩放', '', 3000);
       } else {
-        this.showToast(`第 ${this.levelNumber} 关 · ${this.totalLines} 条箭头`, '', 1400);
+        this.showToast(
+          `第 ${this.levelNumber} 关 · 安全点 ${this.safeStartCount} · 关键点 ${this.keyStartCount}`,
+          '',
+          1800
+        );
       }
+    }
+  }
+
+  buildDependencyMap() {
+    for (const line of this.lines) {
+      line.blockers = this.collision.findRayBlockers(line, this.lines, 3600);
+    }
+  }
+
+  /**
+   * 这条线直接挡住了多少条其他线的路径。
+   * 数值越高，清掉它带来的依赖影响越大。
+   */
+  countDependents(line) {
+    let count = 0;
+    for (const other of this.lines) {
+      if (other === line || other.cleared) continue;
+      if (other.blockers?.includes(line)) count += 1;
+    }
+    return count;
+  }
+
+  showKeyBurst(line, unlockCount) {
+    const layer = this.ui.keyBurstLayer;
+    if (!layer) return;
+
+    const tip = line.points[line.points.length - 1];
+    const screen = this.camera.worldToScreen(tip);
+    const rect = this.canvas.getBoundingClientRect();
+    const x = clamp(rect.left + screen.x, 70, window.innerWidth - 70);
+    const y = clamp(rect.top + screen.y, 90, window.innerHeight - 80);
+
+    const element = document.createElement('div');
+    element.className = `key-burst${unlockCount >= 5 ? ' is-mega' : ''}`;
+    element.style.left = `${x}px`;
+    element.style.top = `${y}px`;
+
+    const icon = document.createElement('span');
+    icon.className = 'key-burst-icon';
+    icon.textContent = '✦';
+
+    const title = document.createElement('strong');
+    title.textContent = '关键突破';
+
+    const detail = document.createElement('small');
+    detail.textContent = `影响 ${unlockCount} 条`;
+
+    element.append(icon, title, detail);
+    layer.append(element);
+
+    const remove = () => element.remove();
+    if (this.reducedMotion) {
+      // 减少动态偏好下不做放大/上浮，但仍保留清晰的文字反馈
+      element.style.animation = 'none';
+      element.style.opacity = '1';
+      element.style.transform = 'translate(-50%, -50%) scale(1)';
+      window.setTimeout(remove, 950);
+    } else {
+      element.addEventListener('animationend', remove, { once: true });
+      window.setTimeout(remove, 1300);
     }
   }
 
@@ -758,6 +841,7 @@ export class Game {
       : `清除 ${line.id}`;
 
     if (!blocking) {
+      line.keyImpact = this.countDependents(line);
       const rawDuration = clamp(
         (maxDistance / CONFIG.animation.slideOutSpeed) * 1000,
         CONFIG.animation.slideOutMinMs,
@@ -793,11 +877,21 @@ export class Game {
     if (!line || line.cleared !== true) return;
     if (this.timedOut || this.gameOver) return;
 
+    const keyImpact = line.keyImpact ?? 0;
+    const isKeyClear = keyImpact >= this.keyThreshold;
+    if (isKeyClear) {
+      this.showKeyBurst(line, keyImpact);
+      this.audio.playKey();
+      this.ui.liveStatus.textContent = `关键突破，影响 ${keyImpact} 条`;
+    }
+
     this.remaining = Math.max(0, this.remaining - 1);
     this.busy = false;
     this.audio.playClear();
     this.updateHUD();
-    this.ui.liveStatus.textContent = `清除成功，剩余 ${this.remaining} 条`;
+    if (!isKeyClear) {
+      this.ui.liveStatus.textContent = `清除成功，剩余 ${this.remaining} 条`;
+    }
 
     if (this.remaining === 0 && !this.levelComplete) {
       this.levelComplete = true;

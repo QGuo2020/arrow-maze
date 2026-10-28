@@ -24,6 +24,7 @@ const ui = {
   zoomOutBtn: document.querySelector('#zoomOutBtn'),
   zoomInBtn: document.querySelector('#zoomInBtn'),
   toast: document.querySelector('#toast'),
+  keyBurstLayer: document.querySelector('#keyBurstLayer'),
   damageFlash: document.querySelector('#damageFlash'),
   liveStatus: document.querySelector('#liveStatus'),
 
