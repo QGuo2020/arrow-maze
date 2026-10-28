@@ -166,6 +166,7 @@ export class Game {
     this.ui.settingsDialog?.removeEventListener('close', this.handleSettingsClosed);
     this.ui.livesInput?.removeEventListener('change', this.handleSettingsChanged);
     this.ui.hintsInput?.removeEventListener('change', this.handleSettingsChanged);
+    this.ui.timeLimitInput?.removeEventListener('change', this.handleSettingsChanged);
     this.ui.bgmToggle?.removeEventListener('change', this.handleSettingsChanged);
     this.ui.sfxToggle?.removeEventListener('change', this.handleSettingsChanged);
     this.ui.guidesToggle?.removeEventListener('change', this.handleSettingsChanged);
@@ -238,6 +239,7 @@ export class Game {
     this.ui.settingsDialog?.addEventListener('close', this.handleSettingsClosed);
     this.ui.livesInput?.addEventListener('change', this.handleSettingsChanged);
     this.ui.hintsInput?.addEventListener('change', this.handleSettingsChanged);
+    this.ui.timeLimitInput?.addEventListener('change', this.handleSettingsChanged);
     this.ui.bgmToggle?.addEventListener('change', this.handleSettingsChanged);
     this.ui.sfxToggle?.addEventListener('change', this.handleSettingsChanged);
     this.ui.guidesToggle?.addEventListener('change', this.handleSettingsChanged);
@@ -293,7 +295,11 @@ export class Game {
     this.board = data.board;
     this.totalLines = data.lines.length;
     this.remaining = data.lines.length;
-    this.timeLimit = calculateTimeLimit(this.levelNumber, this.totalLines);
+    this.timeLimit = calculateTimeLimit(
+      this.levelNumber,
+      this.totalLines,
+      this.settings.timeLimitMinutes
+    );
     this.timeRemaining = this.timeLimit;
     this.timedOut = false;
     this.lastTimerSecond = null;
@@ -979,6 +985,7 @@ export class Game {
     if (!this.ui.settingsDialog) return;
     this.ui.livesInput.value = String(this.settings.lives);
     this.ui.hintsInput.value = String(this.settings.hints);
+    this.ui.timeLimitInput.value = String(this.settings.timeLimitMinutes);
     this.ui.bgmToggle.checked = Boolean(this.settings.bgm);
     this.ui.sfxToggle.checked = Boolean(this.settings.sfx);
     this.ui.guidesToggle.checked = Boolean(this.guides);
@@ -1014,13 +1021,22 @@ export class Game {
     if (!input || !Number.isFinite(step)) return;
 
     let value = Number.parseInt(input.value, 10);
-    if (!Number.isFinite(value)) value = targetId === 'livesInput' ? this.settings.lives : this.settings.hints;
+    if (!Number.isFinite(value)) {
+      value =
+        targetId === 'livesInput'
+          ? this.settings.lives
+          : targetId === 'timeLimitInput'
+            ? this.settings.timeLimitMinutes
+            : this.settings.hints;
+    }
     let next = value + step;
 
     if (targetId === 'livesInput') {
       // 生命值跳过 0：1 再减一就是 -1（无限）
       if (next === 0) next = step > 0 ? 1 : -1;
       next = clamp(next, -1, 99);
+    } else if (targetId === 'timeLimitInput') {
+      next = clamp(next, 1, 30);
     } else {
       next = clamp(next, -1, 99);
     }
@@ -1034,9 +1050,11 @@ export class Game {
 
     const lives = normalizeLives(this.ui.livesInput.value);
     const hints = normalizeHints(this.ui.hintsInput.value);
+    const timeLimitMinutes = normalizeTimeMinutes(this.ui.timeLimitInput.value);
     const previousSettings = this.settings;
     const livesChanged = lives !== previousSettings.lives;
     const hintsChanged = hints !== previousSettings.hints;
+    const timeChanged = timeLimitMinutes !== previousSettings.timeLimitMinutes;
 
     const hasMusic = this.musicTracks.length > 0;
     const wantsBgm = Boolean(this.ui.bgmToggle.checked) && hasMusic;
@@ -1044,6 +1062,7 @@ export class Game {
     this.settings = {
       lives,
       hints,
+      timeLimitMinutes,
       bgm: wantsBgm,
       bgmVolume: clamp(Number(this.ui.bgmVolume.value) / 100, 0, 1),
       musicTrackId: this.settings.musicTrackId,
@@ -1074,11 +1093,31 @@ export class Game {
       this.hintsRemaining = hints;
     }
 
+    if (timeChanged && !this.levelComplete && !this.timedOut && !this.gameOver) {
+      this.applyTimeLimitChange();
+    }
+
     this.audio.unlock();
     this.audio.applySettings(this.settings);
     this.saveSettings();
     this.syncSettingsForm();
     this.updateHUD();
+  }
+
+  applyTimeLimitChange() {
+    const newLimit = calculateTimeLimit(
+      this.levelNumber,
+      this.totalLines,
+      this.settings.timeLimitMinutes
+    );
+    if (!Number.isFinite(newLimit) || newLimit <= 0) return;
+
+    const elapsed = Math.max(0, this.timeLimit - this.timeRemaining);
+    this.timeLimit = newLimit;
+    this.timeRemaining = Math.max(5, newLimit - elapsed);
+    this.lastTimerSecond = null;
+    this.updateTimerDisplay(true);
+    this.showToast(`本关时间已调整为 ${formatTime(newLimit)}`, '', 1500);
   }
 
   handleResetProgress() {
@@ -1755,6 +1794,9 @@ function loadSettings() {
   return {
     lives: normalizeLives(raw.lives ?? defaults.lives),
     hints: normalizeHints(raw.hints ?? defaults.hints),
+    timeLimitMinutes: normalizeTimeMinutes(
+      raw.timeLimitMinutes ?? defaults.timeLimitMinutes
+    ),
     bgm: typeof raw.bgm === 'boolean' ? raw.bgm : defaults.bgm,
     bgmVolume: clamp(Number(raw.bgmVolume ?? defaults.bgmVolume), 0, 1),
     musicTrackId: typeof raw.musicTrackId === 'string' ? raw.musicTrackId : null,
@@ -1786,6 +1828,12 @@ function normalizeHints(value) {
   if (!Number.isFinite(number)) return CONFIG.defaults.hints;
   if (number === -1) return -1;
   return clamp(number, 0, CONFIG.maxStepValue);
+}
+
+function normalizeTimeMinutes(value) {
+  const number = Number.parseInt(value, 10);
+  if (!Number.isFinite(number)) return CONFIG.defaults.timeLimitMinutes;
+  return clamp(number, 1, 30);
 }
 
 function loadClearCount() {

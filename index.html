@@ -263,6 +263,18 @@
               </div>
             </div>
 
+            <div class="setting-row">
+              <div class="setting-copy">
+                <label for="timeLimitInput">关卡时间</label>
+                <p>分钟；默认 6 分钟，关卡越高会自动加时</p>
+              </div>
+              <div class="stepper">
+                <button type="button" data-step-target="timeLimitInput" data-step="-1" aria-label="减少关卡时间">−</button>
+                <input id="timeLimitInput" type="number" min="1" max="30" step="1" inputmode="numeric" />
+                <button type="button" data-step-target="timeLimitInput" data-step="1" aria-label="增加关卡时间">+</button>
+              </div>
+            </div>
+
             <div class="setting-row no-border">
               <div class="setting-copy">
                 <span class="setting-title">累计通关</span>

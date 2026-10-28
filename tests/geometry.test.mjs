@@ -478,10 +478,13 @@ test('箭头射线穿过自身身体时会被识别为自撞', () => {
   assert.equal(collision.hitsOwnBody(clear), false);
 });
 
-test('限时随关卡和线数增加，并正确格式化倒计时', () => {
+test('限时默认 6 分钟起，随关卡/线数增加，并支持调整基础时间', () => {
   assert.ok(calculateTimeLimit(2, 100) > calculateTimeLimit(1, 100));
   assert.ok(calculateTimeLimit(7, 100) > calculateTimeLimit(2, 100));
   assert.ok(calculateTimeLimit(1, 120) > calculateTimeLimit(1, 100));
+  assert.equal(calculateTimeLimit(1, 100, 6), 380);
+  assert.equal(calculateTimeLimit(1, 100, 8), 500);
+  assert.equal(formatTime(380), '06:20');
   assert.equal(formatTime(140), '02:20');
   assert.equal(formatTime(59), '00:59');
   assert.equal(formatTime(0), '00:00');

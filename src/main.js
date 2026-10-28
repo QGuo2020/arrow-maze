@@ -32,6 +32,7 @@ const ui = {
   settingsDoneBtn: document.querySelector('#settingsDoneBtn'),
   livesInput: document.querySelector('#livesInput'),
   hintsInput: document.querySelector('#hintsInput'),
+  timeLimitInput: document.querySelector('#timeLimitInput'),
   clearCount: document.querySelector('#clearCount'),
   bgmToggle: document.querySelector('#bgmToggle'),
   bgmVolume: document.querySelector('#bgmVolume'),

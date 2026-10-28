@@ -1,13 +1,14 @@
 /**
  * 限时规则。
  *
- * 关卡越高、箭头越多，给出的时间越长；但时间仍然是有限制的，
- * 不能无限拖关。基础 120 秒，每升一关 +15 秒，每条箭头再补 0.2 秒。
+ * 默认基础 6 分钟，每升一关 +15 秒，每条箭头再补 0.2 秒。
+ * 玩家可以在设置里调整基础分钟数；关卡越高、箭头越多，时间仍会自动加长。
  */
-export function calculateTimeLimit(levelNumber, lineCount) {
+export function calculateTimeLimit(levelNumber, lineCount, baseMinutes = 6) {
   const level = Math.max(1, Math.floor(Number(levelNumber) || 1));
   const lines = Math.max(1, Math.floor(Number(lineCount) || 1));
-  return Math.round(120 + (level - 1) * 15 + lines * 0.2);
+  const base = Math.min(30, Math.max(1, Math.floor(Number(baseMinutes) || 6)));
+  return Math.round(base * 60 + (level - 1) * 15 + lines * 0.2);
 }
 
 /**
