@@ -31,7 +31,6 @@ npm test        # 几何 / 碰撞 / 自撞过滤 / 限时 / 关卡可解性 / �
 ## 部署到 GitHub Pages
 
 这个项目不需要构建，所有资源都走相对路径，直接作为静态站点发布。
-仓库已包含 `.github/workflows/pages.yml`，推送到 `main` 后会自动部署。
 
 1. 在 GitHub 新建空仓库，例如 `arrow-maze`，不要勾选初始化 README。
 2. 在项目目录执行：
@@ -44,19 +43,22 @@ git remote add origin https://github.com/<你的用户名>/arrow-maze.git
 git push -u origin main
 ```
 
-3. 打开仓库的 **Actions**，等待 `Deploy Arrow Maze to GitHub Pages` 完成。
-4. 首次如果没有自动开启 Pages，到 **Settings → Pages**，Source 选择 **GitHub Actions**。
-5. 访问：
+3. 打开仓库 **Settings → Pages**：
+   - Source 选择 **Deploy from a branch**
+   - Branch 选择 `main`
+   - Folder 选择 `/ (root)`
+   - 保存。
+4. 等待 1~2 分钟，访问：
 
 ```text
 https://<你的用户名>.github.io/arrow-maze/
 ```
 
-仓库里还带了 `.nojekyll`，避免静态文件被 Jekyll 处理。
+仓库里带了 `.nojekyll`，避免静态文件被 Jekyll 处理。
 
 ### 如果放在个人项目 monorepo 里
 
-把 workflow 放到仓库根目录 `.github/workflows/`，并把 artifact 路径改成 `arrow-maze` 即可；GitHub Pages 不能直接把仓库子目录作为站点根目录。
+GitHub Pages 不能直接把仓库子目录作为站点根目录，需要用 GitHub Actions 把 `arrow-maze` 目录作为 artifact 上传，或单独建仓库。
 
 ### 注意事项
 
