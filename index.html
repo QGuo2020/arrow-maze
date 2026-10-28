@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#050912" />
+    <meta
+      name="description"
+      content="Arrow Maze 箭头迷宫：密集霓虹风清线解谜。点击带箭头的折线，让它沿箭头方向滑出棋盘；注意不要撞到其他线。"
+    />
+    <title>Arrow Maze · 箭头迷宫</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <canvas
+        id="game"
+        tabindex="0"
+        aria-label="箭头迷宫游戏画面。点击带箭头的折线，让它沿箭头方向滑出棋盘。拖动空白处平移，双指捏合或滚轮缩放。"
+      >
+        你的浏览器需要支持 HTML5 Canvas 才能游玩。
+      </canvas>
+
+      <!-- 碰撞时的红屏闪烁 -->
+      <div id="damageFlash" class="damage-flash" aria-hidden="true"></div>
+
+      <!-- 顶部 HUD -->
+      <header class="hud hud-top">
+        <div class="hud-group hud-left">
+          <button id="settingsBtn" class="icon-button" type="button" aria-label="打开设置">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+              <path
+                d="M19.2 13.2c.1-.4.1-.8 0-1.2l1.5-1.2-1.5-2.6-1.8.7c-.3-.2-.7-.4-1-.5L16 6.5h-3l-.4 1.9c-.4.1-.7.3-1 .5l-1.8-.7-1.5 2.6L9.8 12a5 5 0 0 0 0 1.2l-1.5 1.2 1.5 2.6 1.8-.7c.3.2.6.4 1 .5l.4 1.9h3l.4-1.9c.4-.1.7-.3 1-.5l1.8.7 1.5-2.6-1.5-1.2Z"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+
+          <button
+            id="guideEyeBtn"
+            class="icon-button"
+            type="button"
+            aria-label="显示辅助线"
+            aria-pressed="false"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M2.3 12s3.6-6.2 9.7-6.2S21.7 12 21.7 12s-3.6 6.2-9.7 6.2S2.3 12 2.3 12Z"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linejoin="round"
+              />
+              <circle cx="12" cy="12" r="2.7" stroke="currentColor" stroke-width="1.7" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="level-info">
+          <div class="level-title">
+            <span>关卡</span>
+            <b id="levelValue">1</b>
+          </div>
+          <div id="hearts" class="hearts" role="img" aria-label="生命值"></div>
+          <div class="hud-meta">
+            <span id="remainingLabel" class="remaining-label">剩余 --</span>
+            <span class="hud-meta-dot" aria-hidden="true">·</span>
+            <span id="timerLabel" class="timer-label" aria-label="剩余时间">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="13" r="7.5" stroke="currentColor" stroke-width="1.8" />
+                <path d="M12 9v4.4l2.8 1.7M9 3h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+              <span id="timerValue">--:--</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="hud-group hud-right">
+          <button
+            id="musicBtn"
+            class="icon-button"
+            type="button"
+            aria-label="开关背景音乐"
+            aria-pressed="true"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M9 18V6.6l9-2v10.8"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <circle cx="6.8" cy="18" r="2.8" stroke="currentColor" stroke-width="1.7" />
+              <circle cx="15.8" cy="15.4" r="2.8" stroke="currentColor" stroke-width="1.7" />
+            </svg>
+          </button>
+
+          <button
+            id="restartBtn"
+            class="icon-button"
+            type="button"
+            aria-label="重新开始本关"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M19.5 9.2A8 8 0 1 0 19.3 15"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+              />
+              <path
+                d="M19.8 4.2v5.4h-5.4"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+      <!-- 底部工具栏 -->
+      <footer class="hud hud-bottom">
+        <div class="toolbar">
+          <button id="hintBtn" class="tool-button hint-button" type="button" aria-label="使用提示">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M9 18h6M10 21h4M8.2 14.5a6 6 0 1 1 7.6 0c-.9.7-1.4 1.5-1.5 2.5h-4.6c-.1-1-.6-1.8-1.5-2.5Z"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span class="tool-label">提示</span>
+            <span id="hintCount" class="tool-badge">3</span>
+          </button>
+
+          <button
+            id="musicToolBtn"
+            class="tool-button music-button"
+            type="button"
+            aria-label="开启背景音乐"
+            aria-pressed="false"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M9 18V6.6l9-2v10.8"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <circle cx="6.8" cy="18" r="2.8" stroke="currentColor" stroke-width="1.7" />
+              <circle cx="15.8" cy="15.4" r="2.8" stroke="currentColor" stroke-width="1.7" />
+            </svg>
+            <span class="tool-label">音乐</span>
+            <span id="musicToolState" class="music-state">关</span>
+          </button>
+
+          <div class="zoom-control">
+            <button id="zoomOutBtn" class="zoom-step" type="button" aria-label="缩小画面">
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="M4.5 10h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+            </button>
+            <input
+              id="zoomSlider"
+              class="zoom-slider"
+              type="range"
+              min="72"
+              max="320"
+              step="1"
+              value="100"
+              aria-label="缩放级别"
+            />
+            <button id="zoomInBtn" class="zoom-step" type="button" aria-label="放大画面">
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path
+                  d="M10 4.5v11M4.5 10h11"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <button id="guideBtn" class="tool-button" type="button" aria-label="开关辅助线" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M9.5 3 7.7 21M16.3 3l-1.8 18M3 9.5h18M3 16.3h18"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span class="tool-label">辅助线</span>
+          </button>
+        </div>
+
+        <p class="gesture-note">拖动平移 · 双指捏合 / 滚轮缩放 · 点击箭头清除</p>
+      </footer>
+
+      <!-- 设置面板 -->
+      <dialog id="settingsDialog" class="modal settings-dialog" aria-labelledby="settingsTitle">
+        <div class="modal-header">
+          <div>
+            <p class="modal-kicker">SETTINGS</p>
+            <h2 id="settingsTitle">设置</h2>
+          </div>
+          <button id="settingsCloseBtn" class="icon-button small" type="button" aria-label="关闭设置">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="m5 5 10 10M15 5 5 15"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="settings-body">
+          <section class="settings-section">
+            <p class="section-label">游戏规则</p>
+
+            <div class="setting-row">
+              <div class="setting-copy">
+                <label for="livesInput">生命数量</label>
+                <p>填 <code>-1</code> 表示无限生命</p>
+              </div>
+              <div class="stepper">
+                <button type="button" data-step-target="livesInput" data-step="-1" aria-label="减少生命">−</button>
+                <input id="livesInput" type="number" min="-1" max="99" step="1" inputmode="numeric" />
+                <button type="button" data-step-target="livesInput" data-step="1" aria-label="增加生命">+</button>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-copy">
+                <label for="hintsInput">提示次数</label>
+                <p>填 <code>-1</code> 表示无限提示，<code>0</code> 关闭提示</p>
+              </div>
+              <div class="stepper">
+                <button type="button" data-step-target="hintsInput" data-step="-1" aria-label="减少提示">−</button>
+                <input id="hintsInput" type="number" min="-1" max="99" step="1" inputmode="numeric" />
+                <button type="button" data-step-target="hintsInput" data-step="1" aria-label="增加提示">+</button>
+              </div>
+            </div>
+
+            <div class="setting-row no-border">
+              <div class="setting-copy">
+                <span class="setting-title">累计通关</span>
+                <p>只保存在当前浏览器；重置进度不会清空</p>
+              </div>
+              <span id="clearCount" class="stat-value">0 次</span>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <p class="section-label">声音</p>
+
+            <div class="setting-row">
+              <div class="setting-copy">
+                <label for="bgmToggle">背景音乐</label>
+                <p>选择你自己的本地音乐，文件保存在浏览器内</p>
+              </div>
+              <label class="switch">
+                <input id="bgmToggle" type="checkbox" />
+                <span aria-hidden="true"></span>
+              </label>
+            </div>
+
+            <div id="bgmVolumeRow" class="volume-row">
+              <span>音乐音量</span>
+              <input id="bgmVolume" type="range" min="0" max="100" step="1" value="40" aria-label="音乐音量" />
+            </div>
+
+            <div class="music-library">
+              <div class="music-library-head">
+                <div>
+                  <span class="setting-title">音乐库</span>
+                  <p>可选择音乐文件，或直接选择整个音乐文件夹</p>
+                </div>
+                <div class="music-library-head-actions">
+                  <button id="pickMusicBtn" class="mini-button" type="button">选择文件</button>
+                  <button id="pickMusicFolderBtn" class="mini-button ghost-mini" type="button">选择文件夹</button>
+                </div>
+              </div>
+              <div class="music-library-controls">
+                <select id="musicTrackSelect" aria-label="选择背景音乐曲目" disabled>
+                  <option value="">尚未选择音乐</option>
+                </select>
+                <button id="removeMusicBtn" class="mini-button danger-text" type="button" disabled>删除</button>
+              </div>
+              <p id="musicLibraryHint" class="music-library-hint">
+                支持一次选择多首，建议 30MB 以内。音频只保存在浏览器中，不会上传。
+              </p>
+              <input id="musicFileInput" type="file" accept="audio/*" multiple hidden />
+              <input
+                id="musicFolderInput"
+                type="file"
+                accept="audio/*"
+                webkitdirectory
+                multiple
+                hidden
+              />
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-copy">
+                <label for="sfxToggle">音效</label>
+                <p>滑动、成功清除与撞击音效</p>
+              </div>
+              <label class="switch">
+                <input id="sfxToggle" type="checkbox" />
+                <span aria-hidden="true"></span>
+              </label>
+            </div>
+
+            <div id="sfxVolumeRow" class="volume-row">
+              <span>音效音量</span>
+              <input id="sfxVolume" type="range" min="0" max="100" step="1" value="45" aria-label="音效音量" />
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <p class="section-label">显示</p>
+
+            <div class="setting-row">
+              <div class="setting-copy">
+                <span class="setting-title">外观</span>
+                <p>黑夜霓虹 / 白天纸感</p>
+              </div>
+              <div class="theme-switch" role="group" aria-label="外观主题">
+                <button
+                  class="theme-choice"
+                  type="button"
+                  data-theme-choice="dark"
+                  aria-pressed="true"
+                >
+                  黑夜
+                </button>
+                <button
+                  class="theme-choice"
+                  type="button"
+                  data-theme-choice="light"
+                  aria-pressed="false"
+                >
+                  白天
+                </button>
+              </div>
+            </div>
+
+            <div class="setting-row no-border">
+              <div class="setting-copy">
+                <label for="guidesToggle">辅助线</label>
+                <p>显示棋盘网格，以及当前线段的飞出方向</p>
+              </div>
+              <label class="switch">
+                <input id="guidesToggle" type="checkbox" />
+                <span aria-hidden="true"></span>
+              </label>
+            </div>
+          </section>
+        </div>
+
+        <div class="modal-footer">
+          <button id="resetProgressBtn" class="ghost-button" type="button">重置进度</button>
+          <button id="settingsDoneBtn" class="primary-button" type="button">完成</button>
+        </div>
+      </dialog>
+
+      <!-- 关卡结束 -->
+      <dialog id="resultDialog" class="modal result-dialog" aria-labelledby="resultTitle">
+        <div id="resultIcon" class="result-icon" aria-hidden="true">✦</div>
+        <p id="resultKicker" class="modal-kicker">LEVEL CLEAR</p>
+        <h2 id="resultTitle">关卡完成</h2>
+        <p id="resultText" class="result-text"></p>
+        <div class="result-actions">
+          <button id="resultSecondaryBtn" class="ghost-button" type="button">重玩本关</button>
+          <button id="resultPrimaryBtn" class="primary-button" type="button" autofocus>下一关</button>
+        </div>
+      </dialog>
+
+      <p id="liveStatus" class="sr-only" aria-live="polite"></p>
+    </main>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
