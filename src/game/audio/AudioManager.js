@@ -1,5 +1,5 @@
 import { CanonMusic } from './CanonMusic.js';
-import { PianoSampler } from './PianoSampler.js';
+import { PianoSampler, preloadPianoSprite } from './PianoSampler.js';
 
 /**
  * 声音管理器。
@@ -34,6 +34,8 @@ export class AudioManager {
     this.levelTrackName = 'D 大调卡农';
     this.interactiveStarting = false;
     this.pendingClickNote = false;
+
+    if (this.settings.bgm) preloadPianoSprite();
   }
 
   /** 第一次用户手势后初始化 AudioContext。 */

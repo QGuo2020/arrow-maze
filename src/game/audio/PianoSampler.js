@@ -34,6 +34,18 @@ const SAMPLE_ROOTS = [
 
 const SLICE_SECONDS = 4;
 
+let spritePromise = null;
+
+/** 页面启动时就开始下载 0.8MB 的钢琴 sprite，避免第一次点击后等太久。 */
+export function preloadPianoSprite() {
+  if (!spritePromise) {
+    spritePromise = fetch(SPRITE_URL, { cache: 'force-cache' })
+      .then((response) => (response.ok ? response.arrayBuffer() : null))
+      .catch(() => null);
+  }
+  return spritePromise;
+}
+
 export class PianoSampler {
   constructor(ctx, destination) {
     this.ctx = ctx;
@@ -47,11 +59,7 @@ export class PianoSampler {
     if (this.ready) return Promise.resolve(true);
     if (this.loading) return this.loading;
 
-    this.loading = fetch(SPRITE_URL, { cache: 'force-cache' })
-      .then((response) => {
-        if (!response.ok) return false;
-        return response.arrayBuffer();
-      })
+    this.loading = preloadPianoSprite()
       .then((data) => {
         if (!data) return false;
         return this.ctx.decodeAudioData(data);
