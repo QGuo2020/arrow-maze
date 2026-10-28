@@ -83,6 +83,7 @@ export class Game {
     this.keyThreshold = 2;
     this.keyStartCount = 0;
     this.safeStartCount = 0;
+    this.shortStartCount = 0;
 
     this.activePointers = new Map();
     this.gesture = null;
@@ -336,6 +337,9 @@ export class Game {
         line.blockers.length === 0 &&
         this.countDependents(line) >= this.keyThreshold
     ).length;
+    this.shortStartCount = this.lines.filter(
+      (line) => line.points.length <= 5
+    ).length;
 
     this.maxLives = normalizeLives(this.settings.lives);
     this.lives = this.maxLives === -1 ? Infinity : this.maxLives;
@@ -362,7 +366,7 @@ export class Game {
     this.syncZoomUI();
     this.setCanvasCursor('grab');
 
-    this.ui.liveStatus.textContent = `第 ${this.levelNumber} 关，共 ${this.totalLines} 条箭头，安全点 ${this.safeStartCount}，关键点 ${this.keyStartCount}，生命 ${this.describeLives()}`;
+    this.ui.liveStatus.textContent = `第 ${this.levelNumber} 关，共 ${this.totalLines} 条箭头，安全点 ${this.safeStartCount}，关键点 ${this.keyStartCount}，短线 ${this.shortStartCount}，生命 ${this.describeLives()}`;
 
     if (announce) {
       if (!readTutorialFlag()) {
@@ -370,7 +374,7 @@ export class Game {
         this.showToast('点击箭头清除 · 拖动平移 · 双指缩放', '', 3000);
       } else {
         this.showToast(
-          `第 ${this.levelNumber} 关 · 安全点 ${this.safeStartCount} · 关键点 ${this.keyStartCount}`,
+          `第 ${this.levelNumber} 关 · 安全点 ${this.safeStartCount} · 关键点 ${this.keyStartCount} · 短线 ${this.shortStartCount}`,
           '',
           1800
         );
@@ -416,13 +420,12 @@ export class Game {
     icon.className = 'key-burst-icon';
     icon.textContent = '✦';
 
-    const title = document.createElement('strong');
-    title.textContent = '关键突破';
+    const count = document.createElement('span');
+    count.className = 'key-burst-count';
+    count.textContent = `+${unlockCount}`;
 
-    const detail = document.createElement('small');
-    detail.textContent = `影响 ${unlockCount} 条`;
-
-    element.append(icon, title, detail);
+    element.title = `关键突破：影响 ${unlockCount} 条`;
+    element.append(icon, count);
     layer.append(element);
 
     const remove = () => element.remove();

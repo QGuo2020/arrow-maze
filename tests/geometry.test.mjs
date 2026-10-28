@@ -22,7 +22,9 @@ import {
   getFreeLineTarget,
   getKeyDependencyThreshold,
   getKeyStartTarget,
-  getSegmentBoost
+  getSegmentBoost,
+  getShortLineRatio,
+  getShortLineTarget
 } from '../src/game/utils/difficulty.js';
 
 const EPSILON = 1e-6;
@@ -416,6 +418,7 @@ test('关卡生成器默认生成密集、四方向且可解的关卡', () => {
     'key starts must be a subset of free lines'
   );
   assert.equal(data.keyThreshold, getKeyDependencyThreshold(1));
+  assert.ok(data.shortLineCount > 0, 'level should contain short lines');
   for (let index = 0; index < data.lines.length; index += 1) {
     const line = data.lines[index];
     const others = data.lines.filter((_, otherIndex) => otherIndex !== index);
@@ -511,6 +514,10 @@ test('难度曲线：安全线逐级减少，线条逐级变长，关键点逐�
   assert.equal(getKeyDependencyThreshold(30), 20);
   assert.ok(getKeyStartTarget(1) > getKeyStartTarget(7));
   assert.equal(getKeyStartTarget(30), 1);
+  assert.ok(getShortLineTarget(10) > getShortLineTarget(1));
+  assert.equal(getShortLineTarget(30), 85);
+  assert.ok(getShortLineRatio(10) > getShortLineRatio(1));
+  assert.equal(getShortLineRatio(30), 0.62);
 });
 
 test('紧凑螺旋/死结线条会被质检过滤', () => {

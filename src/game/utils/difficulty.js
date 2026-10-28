@@ -44,6 +44,21 @@ export function getKeyStartTarget(levelNumber) {
   return Math.max(1, 3 - Math.floor((level - 1) / 3));
 }
 
+/**
+ * 后期靠短线继续加难度：
+ * 关卡越高，目标短线条数越多，短线作为额外阻挡但不减少安全点。
+ */
+export function getShortLineTarget(levelNumber) {
+  const level = Math.max(1, Math.floor(Number(levelNumber) || 1));
+  return Math.min(85, 56 + level * 2);
+}
+
+/** 关卡越高，生成时直接长成 2~4 段短线的比例越高。 */
+export function getShortLineRatio(levelNumber) {
+  const level = Math.max(1, Math.floor(Number(levelNumber) || 1));
+  return Math.min(0.62, 0.3 + (level - 1) * 0.025);
+}
+
 /** 把秒数格式化为 02:20 这样的倒计时文本。 */
 export function formatTime(seconds) {
   const total = Math.max(0, Math.ceil(Number(seconds) || 0));

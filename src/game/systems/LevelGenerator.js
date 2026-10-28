@@ -5,7 +5,9 @@ import {
   getFreeLineTarget,
   getKeyDependencyThreshold,
   getKeyStartTarget,
-  getSegmentBoost
+  getSegmentBoost,
+  getShortLineRatio,
+  getShortLineTarget
 } from '../utils/difficulty.js';
 
 const DIRECTION_NAMES = ['right', 'down', 'left', 'up'];
@@ -16,7 +18,7 @@ const DIRECTION_STEPS = [
   { x: 0, y: -1 }
 ];
 
-const MAX_LINES = 220;
+const MAX_LINES = 260;
 const SHAPE_ATTEMPTS = 6000;
 const MAX_CONSECUTIVE_FAILURES = 420;
 const FREE_TOPUP_ATTEMPTS = 2500;
@@ -41,12 +43,20 @@ export function generateLevel(levelNumber, options = {}) {
   const keyTarget = options.keyTarget ?? getKeyStartTarget(level);
   const keyThreshold =
     options.keyThreshold ?? getKeyDependencyThreshold(level);
+  const shortTarget = options.shortTarget ?? getShortLineTarget(level);
+  const shortRatio = options.shortRatio ?? getShortLineRatio(level);
   const collision = new CollisionSystem();
   let best = null;
   let bestScore = Number.NEGATIVE_INFINITY;
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const result = generateOnce(level, attempt, targetFree, segmentBoost);
+    const result = generateOnce(
+      level,
+      attempt,
+      targetFree,
+      segmentBoost,
+      shortRatio
+    );
     const quality = analyzeLevelQuality(
       result.lines,
       collision,
@@ -54,16 +64,21 @@ export function generateLevel(levelNumber, options = {}) {
     );
     const freeGap = Math.abs(quality.freeCount - targetFree);
     const keyGap = Math.abs(quality.keyStartCount - keyTarget);
-    // 优先匹配安全点/关键点预算，再选择线条更多的布局。
-    // 这样高关卡不是单纯“线更多”，而是安全入口和关键突破更少。
+    const shortGap = Math.max(0, shortTarget - quality.shortLineCount);
+    // 优先匹配安全点/关键点预算，再补足高关卡短线数量。
     const score =
-      result.lines.length * 0.5 - freeGap * 1000 - keyGap * 120;
+      result.lines.length * 0.5 -
+      freeGap * 1000 -
+      keyGap * 120 -
+      shortGap * 35;
     if (score > bestScore) {
       best = {
         ...result,
         freeCount: quality.freeCount,
         keyStartCount: quality.keyStartCount,
-        keyThreshold
+        shortLineCount: quality.shortLineCount,
+        keyThreshold,
+        shortLineTarget: shortTarget
       };
       bestScore = score;
     }
@@ -81,6 +96,8 @@ export function generateLevel(levelNumber, options = {}) {
     solution: best.solution,
     freeCount: best.freeCount,
     keyStartCount: best.keyStartCount,
+    shortLineCount: best.shortLineCount,
+    shortLineTarget: best.shortLineTarget,
     keyThreshold: best.keyThreshold
   };
 }
@@ -104,7 +121,7 @@ export function createBoard() {
   };
 }
 
-function generateOnce(level, attempt, targetFree, segmentBoost) {
+function generateOnce(level, attempt, targetFree, segmentBoost, shortRatio) {
   const seed = hashSeed(level, attempt);
   const rng = mulberry32(seed);
   const board = createBoard();
@@ -185,7 +202,14 @@ function generateOnce(level, attempt, targetFree, segmentBoost) {
     attemptIndex < SHAPE_ATTEMPTS && lines.length < MAX_LINES;
     attemptIndex += 1
   ) {
-    const shape = growShape(rng, occupiedVertices, occupiedEdges, segmentBoost);
+    const useShort = rng() < shortRatio;
+    const shape = growShape(
+      rng,
+      occupiedVertices,
+      occupiedEdges,
+      segmentBoost,
+      useShort
+    );
     if (!shape) {
       consecutiveFailures += 1;
       if (consecutiveFailures > MAX_CONSECUTIVE_FAILURES) break;
@@ -245,13 +269,15 @@ function generateOnce(level, attempt, targetFree, segmentBoost) {
   if (order.length !== lines.length) {
     throw new Error('关卡依赖图出现环，生成器逻辑需要检查。');
   }
+  const shortCount = lines.filter((line) => line.points.length <= 5).length;
 
   return {
     seed,
     board,
     lines,
     solution: order.map((line) => line.id),
-    freeCount
+    freeCount,
+    shortLineCount: shortCount
   };
 }
 
@@ -259,7 +285,13 @@ function generateOnce(level, attempt, targetFree, segmentBoost) {
  * 从随机空格出发，在未占用的格点上生长一条长折线。
  * 每一步会在“直行/左转/右转”和 1~5 格长度里选择综合评分最高的走法。
  */
-function growShape(rng, occupiedVertices, occupiedEdges, segmentBoost = 0) {
+function growShape(
+  rng,
+  occupiedVertices,
+  occupiedEdges,
+  segmentBoost = 0,
+  short = false
+) {
   const { cols, rows, gridMargin } = CONFIG.board;
   const minC = gridMargin;
   const maxC = cols - gridMargin;
@@ -277,16 +309,21 @@ function growShape(rng, occupiedVertices, occupiedEdges, segmentBoost = 0) {
   }
   if (!start) return null;
 
-  const targetSegments =
-    weightedChoice(rng, [
-      [6, 0.10],
-      [7, 0.14],
-      [8, 0.18],
-      [9, 0.18],
-      [10, 0.16],
-      [11, 0.12],
-      [12, 0.12]
-    ]) + segmentBoost;
+  const targetSegments = short
+    ? weightedChoice(rng, [
+        [2, 0.35],
+        [3, 0.4],
+        [4, 0.25]
+      ])
+    : weightedChoice(rng, [
+        [6, 0.10],
+        [7, 0.14],
+        [8, 0.18],
+        [9, 0.18],
+        [10, 0.16],
+        [11, 0.12],
+        [12, 0.12]
+      ]) + segmentBoost;
 
   let { c, r } = start;
   let direction = randomInt(rng, 0, 3);
@@ -304,7 +341,8 @@ function growShape(rng, occupiedVertices, occupiedEdges, segmentBoost = 0) {
     const options = [];
     for (const candidateDirection of directions) {
       const step = DIRECTION_STEPS[candidateDirection];
-      for (const length of [5, 4, 3, 2, 1]) {
+      const lengths = short ? [3, 2, 1] : [5, 4, 3, 2, 1];
+      for (const length of lengths) {
         const end = previewSegment(
           c,
           r,
@@ -489,6 +527,9 @@ function analyzeLevelQuality(lines, collision, keyThreshold) {
 
   let freeCount = 0;
   let keyStartCount = 0;
+  const shortLineCount = lines.filter(
+    (line) => line.points.length <= 5
+  ).length;
 
   for (const line of lines) {
     if (blockersByLine.get(line).length > 0) continue;
@@ -503,7 +544,7 @@ function analyzeLevelQuality(lines, collision, keyThreshold) {
     if (dependents >= keyThreshold) keyStartCount += 1;
   }
 
-  return { freeCount, keyStartCount };
+  return { freeCount, keyStartCount, shortLineCount };
 }
 
 function topologicalOrder(lines, graph) {

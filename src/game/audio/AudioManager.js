@@ -15,6 +15,9 @@ export class AudioManager {
     this.masterGain = null;
     this.compressor = null;
     this.sfxGain = null;
+    this.sfxFilter = null;
+    this.reverb = null;
+    this.reverbGain = null;
     this.noiseBuffer = null;
     this.unlocked = false;
 
@@ -53,7 +56,23 @@ export class AudioManager {
 
       this.sfxGain = this.ctx.createGain();
       this.sfxGain.gain.value = this.settings.sfxVolume;
-      this.sfxGain.connect(this.masterGain);
+
+      // 稍微收一下高频，再叠一点短混响，去掉干瘪的电子味
+      this.sfxFilter = this.ctx.createBiquadFilter();
+      this.sfxFilter.type = 'lowpass';
+      this.sfxFilter.frequency.value = 7800;
+      this.sfxFilter.Q.value = 0.35;
+
+      this.reverb = this.ctx.createConvolver();
+      this.reverb.buffer = this.createReverbImpulse();
+      this.reverbGain = this.ctx.createGain();
+      this.reverbGain.gain.value = 0.16;
+
+      this.sfxGain.connect(this.sfxFilter);
+      this.sfxFilter.connect(this.masterGain);
+      this.sfxFilter.connect(this.reverb);
+      this.reverb.connect(this.reverbGain);
+      this.reverbGain.connect(this.masterGain);
 
       this.noiseBuffer = this.createNoiseBuffer();
       this.unlocked = true;
@@ -145,21 +164,21 @@ export class AudioManager {
     const now = this.ctx.currentTime;
     const pitch = 0.96 + Math.random() * 0.08;
 
-    // 轻、短、低频的木质“嗒”声；没有高频扫频，避免刺耳
-    this.tone({
-      frequency: 196 * pitch,
-      endFrequency: 142,
-      duration: 0.06,
-      type: 'sine',
-      level: 0.024,
+    // 更接近手指摩擦/木质轻触的短气声，不再用可辨认的音高
+    this.noiseSweep({
+      startFrequency: 1100 * pitch,
+      endFrequency: 360,
+      duration: 0.055,
+      level: 0.021,
+      q: 0.85,
       when: now
     });
-    this.noiseSweep({
-      startFrequency: 520,
-      endFrequency: 180,
+    this.tone({
+      frequency: 112,
+      endFrequency: 82,
       duration: 0.05,
-      level: 0.009,
-      q: 0.7,
+      type: 'sine',
+      level: 0.011,
       when: now
     });
   }
@@ -168,29 +187,21 @@ export class AudioManager {
     if (!this.canPlaySfx()) return;
     const now = this.ctx.currentTime;
 
-    // 清爽的软泡泡
-    this.tone({
-      frequency: 660,
-      endFrequency: 920,
-      duration: 0.16,
-      type: 'sine',
-      level: 0.045,
+    // 空气感的上扬“呼”声，取代原来的双音泡泡
+    this.noiseSweep({
+      startFrequency: 900,
+      endFrequency: 260,
+      duration: 0.2,
+      level: 0.02,
+      q: 1.15,
       when: now
     });
     this.tone({
-      frequency: 990,
-      endFrequency: 1240,
-      duration: 0.2,
-      type: 'triangle',
-      level: 0.022,
-      when: now + 0.035
-    });
-    this.noiseSweep({
-      startFrequency: 2100,
-      endFrequency: 1100,
-      duration: 0.07,
-      level: 0.018,
-      q: 1.4,
+      frequency: 210,
+      endFrequency: 138,
+      duration: 0.18,
+      type: 'sine',
+      level: 0.014,
       when: now
     });
   }
@@ -229,56 +240,72 @@ export class AudioManager {
   playKey() {
     if (!this.canPlaySfx()) return;
     const now = this.ctx.currentTime;
-    // 关键突破：一个轻快的上行小音阶，不刺耳
-    [659.25, 880, 1174.66].forEach((frequency, index) => {
-      this.tone({
-        frequency,
-        duration: 0.24,
-        type: 'sine',
-        level: 0.032 - index * 0.004,
-        when: now + index * 0.075
-      });
-    });
+
+    // 空气闪烁 + 两个柔和泛音，不再播上行音阶
     this.noiseSweep({
-      startFrequency: 2800,
-      endFrequency: 1800,
-      duration: 0.12,
-      level: 0.012,
-      q: 1.2,
+      startFrequency: 600,
+      endFrequency: 2700,
+      duration: 0.22,
+      level: 0.014,
+      q: 1.7,
       when: now
+    });
+    this.tone({
+      frequency: 880,
+      duration: 0.42,
+      type: 'sine',
+      level: 0.011,
+      when: now
+    });
+    this.tone({
+      frequency: 1320,
+      duration: 0.3,
+      type: 'sine',
+      level: 0.006,
+      when: now + 0.018
     });
   }
 
   playHint() {
     if (!this.canPlaySfx()) return;
     const now = this.ctx.currentTime;
-    this.tone({
-      frequency: 880,
-      endFrequency: 880,
-      duration: 0.16,
-      type: 'sine',
-      level: 0.03,
+    this.noiseSweep({
+      startFrequency: 760,
+      endFrequency: 360,
+      duration: 0.075,
+      level: 0.012,
+      q: 1,
       when: now
     });
     this.tone({
-      frequency: 1320,
-      duration: 0.22,
+      frequency: 523,
+      endFrequency: 470,
+      duration: 0.13,
       type: 'sine',
-      level: 0.018,
-      when: now + 0.07
+      level: 0.009,
+      when: now
     });
   }
 
   playWin() {
     if (!this.canPlaySfx()) return;
     const now = this.ctx.currentTime;
-    [523.25, 659.25, 783.99, 1046.5].forEach((frequency, index) => {
+    // 柔和的和弦铺底 + 气声，而不是四个音依次叮咚
+    this.noiseSweep({
+      startFrequency: 700,
+      endFrequency: 1500,
+      duration: 0.45,
+      level: 0.014,
+      q: 1.2,
+      when: now
+    });
+    [392, 523.25, 659.25].forEach((frequency) => {
       this.tone({
         frequency,
-        duration: 0.4,
+        duration: 0.75,
         type: 'sine',
-        level: 0.04,
-        when: now + index * 0.1
+        level: 0.013,
+        when: now
       });
     });
   }
@@ -347,6 +374,17 @@ export class AudioManager {
     gain.connect(this.sfxGain);
     source.start(start);
     source.stop(start + duration + 0.02);
+  }
+
+  createReverbImpulse() {
+    const length = Math.floor(this.ctx.sampleRate * 0.38);
+    const buffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let index = 0; index < length; index += 1) {
+      const decay = Math.pow(1 - index / length, 3.2);
+      data[index] = (Math.random() * 2 - 1) * decay;
+    }
+    return buffer;
   }
 
   createNoiseBuffer() {
