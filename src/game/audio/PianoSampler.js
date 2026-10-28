@@ -4,39 +4,41 @@
  * 采样来自 Salamander Grand Piano V3（Alexander Holm，CC BY 3.0），
  * 详见 assets/audio/piano/ATTRIBUTION.md。
  *
- * 只抽取 A/C/D#/F# 四组采样，中间音用 playbackRate 做轻微变调；
- * 最大变调不超过 1.5 个半音，保留真实钢琴的起音和尾音。
+ * 17 个音被裁成 4 秒一段并串成一个音频 sprite；只发一个请求，
+ * 播放时用 buffer offset 取对应音高，再用 playbackRate 做最多 1.5 个半音变调。
  */
-const SAMPLE_ROOT = new URL(
-  '../../../assets/audio/piano/',
+const SPRITE_URL = new URL(
+  '../../../assets/audio/piano/piano-sprite.png',
   import.meta.url
 );
 
-const SAMPLE_FILES = [
-  ['A1v1.png', 33],
-  ['C2v1.png', 36],
-  ['D#2v1.png', 39],
-  ['F#2v1.png', 42],
-  ['A2v1.png', 45],
-  ['C3v1.png', 48],
-  ['D#3v1.png', 51],
-  ['F#3v1.png', 54],
-  ['A3v1.png', 57],
-  ['C4v1.png', 60],
-  ['D#4v1.png', 63],
-  ['F#4v1.png', 66],
-  ['A4v1.png', 69],
-  ['C5v1.png', 72],
-  ['D#5v1.png', 75],
-  ['F#5v1.png', 78],
-  ['A5v1.png', 81]
+const SAMPLE_ROOTS = [
+  33, // A1
+  36, // C2
+  39, // D#2
+  42, // F#2
+  45, // A2
+  48, // C3
+  51, // D#3
+  54, // F#3
+  57, // A3
+  60, // C4
+  63, // D#4
+  66, // F#4
+  69, // A4
+  72, // C5
+  75, // D#5
+  78, // F#5
+  81 // A5
 ];
+
+const SLICE_SECONDS = 4;
 
 export class PianoSampler {
   constructor(ctx, destination) {
     this.ctx = ctx;
     this.destination = destination;
-    this.buffers = [];
+    this.buffer = null;
     this.ready = false;
     this.loading = null;
   }
@@ -45,41 +47,34 @@ export class PianoSampler {
     if (this.ready) return Promise.resolve(true);
     if (this.loading) return this.loading;
 
-    const jobs = SAMPLE_FILES.map(async ([filename, midi]) => {
-      try {
-        const url = new URL(
-          encodeURIComponent(filename),
-          SAMPLE_ROOT
-        );
-        const response = await fetch(url, { cache: 'force-cache' });
-        if (!response.ok) return null;
-        const data = await response.arrayBuffer();
-        const buffer = await this.ctx.decodeAudioData(data);
-        return { midi, buffer };
-      } catch {
-        return null;
-      }
-    });
-
-    this.loading = Promise.all(jobs)
-      .then((samples) => {
-        this.buffers = samples.filter(Boolean);
-        this.ready = this.buffers.length > 0;
-        return this.ready;
+    this.loading = fetch(SPRITE_URL, { cache: 'force-cache' })
+      .then((response) => {
+        if (!response.ok) return false;
+        return response.arrayBuffer();
+      })
+      .then((data) => {
+        if (!data) return false;
+        return this.ctx.decodeAudioData(data);
+      })
+      .then((buffer) => {
+        if (!buffer) return false;
+        this.buffer = buffer;
+        this.ready = true;
+        return true;
       })
       .catch(() => false);
 
     return this.loading;
   }
 
-  nearest(midi) {
-    let best = this.buffers[0];
+  nearestIndex(midi) {
+    let best = 0;
     let bestDistance = Infinity;
-    for (const sample of this.buffers) {
-      const distance = Math.abs(sample.midi - midi);
+    for (let index = 0; index < SAMPLE_ROOTS.length; index += 1) {
+      const distance = Math.abs(SAMPLE_ROOTS[index] - midi);
       if (distance < bestDistance) {
         bestDistance = distance;
-        best = sample;
+        best = index;
       }
     }
     return best;
@@ -87,23 +82,29 @@ export class PianoSampler {
 
   play(midi, when, duration = 2, velocity = 0.1) {
     if (!this.ready || !this.ctx || !this.destination) return;
-    const sample = this.nearest(midi);
-    if (!sample) return;
+    const index = this.nearestIndex(midi);
+    const root = SAMPLE_ROOTS[index];
+    const rate = Math.pow(2, (midi - root) / 12);
+    const offset = index * SLICE_SECONDS;
+    const sourceDuration = Math.min(SLICE_SECONDS, duration * rate + 0.2);
 
     const source = this.ctx.createBufferSource();
-    source.buffer = sample.buffer;
-    source.playbackRate.value = Math.pow(2, (midi - sample.midi) / 12);
+    source.buffer = this.buffer;
+    source.playbackRate.value = rate;
 
     const gain = this.ctx.createGain();
     const start = Math.max(this.ctx.currentTime, when ?? 0);
     const end = start + duration;
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.linearRampToValueAtTime(Math.max(0.0001, velocity), start + 0.012);
+    gain.gain.linearRampToValueAtTime(
+      Math.max(0.0001, velocity),
+      start + 0.012
+    );
     gain.gain.exponentialRampToValueAtTime(0.0001, end);
 
     source.connect(gain);
     gain.connect(this.destination);
-    source.start(start);
+    source.start(start, offset, sourceDuration);
     source.stop(end + 0.04);
   }
 }

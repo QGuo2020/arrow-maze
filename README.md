@@ -141,9 +141,9 @@ Canvas 通过 `CONFIG.themes` 调色板切换背景、棋盘、线段、箭头�
 - 钢琴采样：**Salamander Grand Piano V3**，作者 Alexander Holm，**CC BY 3.0**；
 - 采样来源：<https://archive.org/details/SalamanderGrandPianoV3>，
   MP3 子集来自 `@audio-samples/piano-mp3-velocity1@1.0.5`；
-- 采样文件保存在 `assets/audio/piano/`：17 个音，裁剪为 6 秒单声道 96kbps MP3，
-  共约 1.2MB；为了绕开静态服务器对媒体 MIME 的过滤，文件使用 `.png` 扩展名作为
-  不透明音频容器，字节仍是 MP3；
+- 采样文件保存在 `assets/audio/piano/`：17 个音各裁成 4 秒、单声道 96kbps，
+  串成一个约 0.8MB 的音频 sprite，只发一个请求；为了绕开静态服务器对媒体 MIME
+  的过滤，文件使用 `.png` 扩展名作为不透明音频容器，字节仍是 MP3；
 - 作曲是公版，采样是 CC BY 3.0，可商用但必须保留作者与许可署名；
 - 设置面板内已显示曲目、作者和许可链接。
 
