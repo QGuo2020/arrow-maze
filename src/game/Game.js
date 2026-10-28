@@ -74,6 +74,7 @@ export class Game {
     this.timeRemaining = 0;
     this.lastTimerSecond = null;
     this.timerLow = false;
+    this.timerStarted = false;
     this.timedOut = false;
 
     this.activePointers = new Map();
@@ -301,6 +302,7 @@ export class Game {
       this.settings.timeLimitMinutes
     );
     this.timeRemaining = this.timeLimit;
+    this.timerStarted = false;
     this.timedOut = false;
     this.lastTimerSecond = null;
     this.timerLow = false;
@@ -324,6 +326,7 @@ export class Game {
     this.busy = false;
     this.gameOver = false;
     this.levelComplete = false;
+    this.timerStarted = false;
     this.timedOut = false;
     this.pendingResultReopen = false;
     this.pressedLine = null;
@@ -380,13 +383,30 @@ export class Game {
     if (this.ui.timerLabel) {
       this.ui.timerLabel.setAttribute(
         'aria-label',
-        `剩余时间 ${formatTime(seconds)}`
+        this.timerStarted
+          ? `剩余时间 ${formatTime(seconds)}`
+          : `剩余时间 ${formatTime(seconds)}，点击画面开始计时`
       );
     }
   }
 
+  startTimer() {
+    if (
+      this.timerStarted ||
+      this.timedOut ||
+      this.gameOver ||
+      this.levelComplete
+    ) {
+      return;
+    }
+    this.timerStarted = true;
+    this.lastTimerSecond = null;
+    this.updateTimerDisplay(true);
+  }
+
   tickTimer(deltaSeconds) {
     if (
+      !this.timerStarted ||
       this.timedOut ||
       this.gameOver ||
       this.levelComplete ||
@@ -448,6 +468,7 @@ export class Game {
     if (this.activePointers.size >= 2) return;
 
     event.preventDefault();
+    this.startTimer();
     this.audio.unlock();
     this.canvas.focus({ preventScroll: true });
 
@@ -858,6 +879,7 @@ export class Game {
       return;
     }
 
+    this.startTimer();
     const line = this.findHintLine();
     if (!line) {
       this.showToast('当前没有可直接清除的线段', 'is-hint', 1600);
@@ -1111,6 +1133,14 @@ export class Game {
       this.settings.timeLimitMinutes
     );
     if (!Number.isFinite(newLimit) || newLimit <= 0) return;
+
+    if (!this.timerStarted) {
+      this.timeLimit = newLimit;
+      this.timeRemaining = newLimit;
+      this.lastTimerSecond = null;
+      this.updateTimerDisplay(true);
+      return;
+    }
 
     const elapsed = Math.max(0, this.timeLimit - this.timeRemaining);
     this.timeLimit = newLimit;
