@@ -290,8 +290,33 @@
 
             <div class="setting-row">
               <div class="setting-copy">
+                <span class="setting-title">音乐来源</span>
+                <p>互动乐章会随点击演奏；本地音乐从音乐库播放</p>
+              </div>
+              <div class="theme-switch" role="group" aria-label="音乐来源">
+                <button
+                  id="musicModeInteractive"
+                  class="theme-choice"
+                  type="button"
+                  aria-pressed="true"
+                >
+                  互动乐章
+                </button>
+                <button
+                  id="musicModeLocal"
+                  class="theme-choice"
+                  type="button"
+                  aria-pressed="false"
+                >
+                  本地音乐
+                </button>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-copy">
                 <label for="bgmToggle">音乐</label>
-                <p>默认播放互动乐章《卡农》；选择本地音乐后优先播放本地音乐</p>
+                <p>互动乐章默认用《卡农》；切到本地音乐才播放音乐库曲目</p>
                 <p class="setting-credit">
                   曲目：帕赫贝尔《D 大调卡农》（公版）· 钢琴采样：
                   <a href="https://archive.org/details/SalamanderGrandPianoV3" target="_blank" rel="noreferrer">Salamander Grand Piano V3</a>
@@ -313,7 +338,7 @@
               <div class="music-library-head">
                 <div>
                   <span class="setting-title">本地音乐（可选）</span>
-                  <p>导入后会覆盖互动乐章；文件仅保存在当前浏览器</p>
+                  <p>导入后在“音乐来源”里切到本地音乐；文件仅保存在当前浏览器</p>
                 </div>
                 <div class="music-library-head-actions">
                   <button id="pickMusicBtn" class="mini-button" type="button">选择文件</button>

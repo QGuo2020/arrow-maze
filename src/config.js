@@ -122,6 +122,7 @@ export const CONFIG = Object.freeze({
     // 不再默认播放内置合成音乐；由玩家在设置里选择本地音乐
     bgm: true,
     bgmVolume: 0.4,
+    musicMode: 'interactive',
     musicTrackId: null,
     sfx: true,
     sfxVolume: 0.45,

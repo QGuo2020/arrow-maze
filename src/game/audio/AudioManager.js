@@ -1,6 +1,22 @@
 import { CanonMusic } from './CanonMusic.js';
 import { PianoSampler, preloadPianoSprite } from './PianoSampler.js';
 
+const CANON_LOOP_URL = new URL(
+  '../../../assets/audio/canon-loop.png',
+  import.meta.url
+);
+
+let canonLoopDataPromise = null;
+
+function preloadCanonLoopData() {
+  if (!canonLoopDataPromise) {
+    canonLoopDataPromise = fetch(CANON_LOOP_URL, { cache: 'force-cache' })
+      .then((response) => (response.ok ? response.arrayBuffer() : null))
+      .catch(() => null);
+  }
+  return canonLoopDataPromise;
+}
+
 /**
  * 声音管理器。
  *
@@ -34,8 +50,15 @@ export class AudioManager {
     this.levelTrackName = 'D 大调卡农';
     this.interactiveStarting = false;
     this.pendingClickNote = false;
+    this.canonLoopBuffer = null;
+    this.canonLoopSource = null;
+    this.canonLoopLoading = null;
+    this.canonLoopFailed = false;
 
-    if (this.settings.bgm) preloadPianoSprite();
+    if (this.settings.bgm) {
+      preloadPianoSprite();
+      preloadCanonLoopData();
+    }
   }
 
   /** 第一次用户手势后初始化 AudioContext。 */
@@ -132,7 +155,6 @@ export class AudioManager {
         0.04
       );
     }
-
     if (this.settings.bgm) {
       this.startBgm();
     } else {
@@ -203,9 +225,7 @@ export class AudioManager {
   setLevelTrack() {
     // B 方案先只做《卡农》；后续扩曲目时在这里切换曲目表。
     this.levelTrackName = 'D 大调卡农';
-    if (this.canonMusic?.active) {
-      this.canonMusic.stop();
-    }
+    this.stopInteractiveMusic();
     if (this.settings.bgm && !this.customAudio) {
       this.startInteractiveMusic();
     }
@@ -226,31 +246,93 @@ export class AudioManager {
       return;
     }
 
-    if (this.pianoSampler?.ready) {
-      this.musicGain.gain.setTargetAtTime(
-        this.settings.bgmVolume * 0.9,
-        this.ctx.currentTime,
-        0.08
-      );
-      if (!this.canonMusic.active) {
-        this.canonMusic.start();
-        if (this.pendingClickNote) {
-          this.canonMusic.click();
-          this.pendingClickNote = false;
-        }
-      }
+    this.musicGain.gain.setTargetAtTime(
+      this.settings.bgmVolume * 0.9,
+      this.ctx.currentTime,
+      0.08
+    );
+
+    // 点击音的和弦上下文
+    if (!this.canonMusic.active) {
+      this.canonMusic.start({ withBackground: false });
+    }
+
+    // 背景优先用预渲染的完整卡农循环，真正像一首歌
+    this.startCanonLoop();
+    this.ensurePianoSamples();
+  }
+
+  startCanonLoop() {
+    if (!this.ctx || !this.musicGain || this.canonLoopSource) return;
+
+    if (this.canonLoopBuffer) {
+      const source = this.ctx.createBufferSource();
+      source.buffer = this.canonLoopBuffer;
+      source.loop = true;
+      source.connect(this.musicGain);
+      source.start();
+      this.canonLoopSource = source;
       return;
     }
 
-    if (this.interactiveStarting) return;
+    if (this.canonLoopLoading) return;
+    this.canonLoopLoading = preloadCanonLoopData()
+      .then((data) => {
+        if (!data) return false;
+        return this.ctx.decodeAudioData(data);
+      })
+      .then((buffer) => {
+        this.canonLoopLoading = null;
+        if (!buffer) return false;
+        this.canonLoopBuffer = buffer;
+        if (this.settings.bgm && !this.customAudio) this.startCanonLoop();
+        return true;
+      })
+      .catch(() => {
+        this.canonLoopLoading = null;
+        this.canonLoopFailed = true;
+        if (this.settings.bgm && !this.customAudio) {
+          this.startCanonScheduler();
+        }
+        return false;
+      });
+  }
+
+  stopCanonLoop() {
+    if (!this.canonLoopSource) return;
+    try {
+      this.canonLoopSource.stop();
+    } catch {
+      // 已经停止
+    }
+    this.canonLoopSource.disconnect();
+    this.canonLoopSource = null;
+  }
+
+  /** 预渲染循环不可用时的兜底：用采样实时排卡农。 */
+  startCanonScheduler() {
+    if (!this.canonMusic) return;
+    if (!this.pianoSampler?.ready) {
+      this.ensurePianoSamples();
+      return;
+    }
+    this.canonMusic.stop();
+    this.canonMusic.start({ withBackground: true });
+  }
+
+  ensurePianoSamples() {
+    if (this.pianoSampler?.ready || this.interactiveStarting) return;
     this.interactiveStarting = true;
     this.pianoSampler
       .load()
       .then((ready) => {
         this.interactiveStarting = false;
-        if (ready && this.settings.bgm && !this.customAudio) {
-          this.startInteractiveMusic();
+        if (!ready || !this.settings.bgm || this.customAudio) return;
+        if (this.pendingClickNote && this.canonMusic?.active) {
+          this.canonMusic.click();
+          this.pendingClickNote = false;
         }
+        if (this.canonLoopFailed) this.startCanonScheduler();
       })
       .catch(() => {
         this.interactiveStarting = false;
@@ -260,6 +342,7 @@ export class AudioManager {
   stopInteractiveMusic() {
     this.pendingClickNote = false;
     this.canonMusic?.stop();
+    this.stopCanonLoop();
     if (this.musicGain && this.ctx) {
       this.musicGain.gain.cancelScheduledValues(this.ctx.currentTime);
       this.musicGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
@@ -267,19 +350,14 @@ export class AudioManager {
   }
 
   playClick() {
-    if (
-      this.settings.bgm &&
-      !this.customAudio &&
-      this.canonMusic?.active &&
-      this.pianoSampler?.ready
-    ) {
-      this.canonMusic.click();
-      return;
-    }
-    if (this.settings.bgm && !this.customAudio && !this.canonMusic?.active) {
-      // 首次点击时钢琴采样可能还在载入；加载完成后补上这一下音符
-      this.pendingClickNote = true;
-      this.startInteractiveMusic();
+    if (this.settings.bgm && !this.customAudio) {
+      if (this.canonMusic?.active && this.pianoSampler?.ready) {
+        this.canonMusic.click();
+      } else {
+        // 首次点击时钢琴采样可能还在载入；背景先响，加载完成后补上这一下音符
+        this.pendingClickNote = true;
+        this.startInteractiveMusic();
+      }
       return;
     }
     if (!this.canPlaySfx()) return;

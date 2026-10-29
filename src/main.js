@@ -15,6 +15,8 @@ const ui = {
   guideEyeBtn: document.querySelector('#guideEyeBtn'),
   musicBtn: document.querySelector('#musicBtn'),
   musicToolBtn: document.querySelector('#musicToolBtn'),
+  musicModeInteractive: document.querySelector('#musicModeInteractive'),
+  musicModeLocal: document.querySelector('#musicModeLocal'),
   musicToolState: document.querySelector('#musicToolState'),
   restartBtn: document.querySelector('#restartBtn'),
   hintBtn: document.querySelector('#hintBtn'),

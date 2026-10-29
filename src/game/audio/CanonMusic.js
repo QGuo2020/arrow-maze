@@ -51,7 +51,7 @@ export class CanonMusic {
     return 'D 大调卡农';
   }
 
-  start() {
+  start({ withBackground = true } = {}) {
     const ctx = this.getContext();
     if (!ctx) return;
     this.stop();
@@ -60,8 +60,10 @@ export class CanonMusic {
     this.nextBarTime = this.startTime;
     this.barIndex = 0;
     this.clickIndex = 0;
-    this.schedule();
-    this.timer = window.setInterval(() => this.schedule(), 70);
+    if (withBackground) {
+      this.schedule();
+      this.timer = window.setInterval(() => this.schedule(), 70);
+    }
   }
 
   stop() {

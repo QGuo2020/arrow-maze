@@ -15,6 +15,11 @@ Changes: 17 samples were trimmed to 4 seconds, converted to mono 44.1kHz MP3
 `.png` extension so the static host serves it as opaque data instead of media;
 the bytes are still MP3 audio. No claim of authorship over the samples is made.
 
+The file `assets/audio/canon-loop.png` is an original arrangement generated
+from those samples for this game, using the public-domain Canon in D chord
+progression and melody. It is also stored as opaque MP3 bytes behind a `.png`
+extension.
+
 The composition used with these samples, Pachelbel's **Canon in D**, is in the
 public domain. The game arrangement is original code and is not based on a
 copyrighted recording.

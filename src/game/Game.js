@@ -115,6 +115,9 @@ export class Game {
     this.handleHint = this.handleHint.bind(this);
     this.handleGuideToggle = this.handleGuideToggle.bind(this);
     this.handleMusicToggle = this.handleMusicToggle.bind(this);
+    this.handleMusicModeInteractive =
+      this.handleMusicModeInteractive.bind(this);
+    this.handleMusicModeLocal = this.handleMusicModeLocal.bind(this);
     this.handlePickMusic = this.handlePickMusic.bind(this);
     this.handlePickMusicFolder = this.handlePickMusicFolder.bind(this);
     this.handleMusicFiles = this.handleMusicFiles.bind(this);
@@ -195,6 +198,14 @@ export class Game {
     this.ui.guideEyeBtn?.removeEventListener('click', this.handleGuideToggle);
     this.ui.musicBtn?.removeEventListener('click', this.handleMusicToggle);
     this.ui.musicToolBtn?.removeEventListener('click', this.handleMusicToggle);
+    this.ui.musicModeInteractive?.removeEventListener(
+      'click',
+      this.handleMusicModeInteractive
+    );
+    this.ui.musicModeLocal?.removeEventListener(
+      'click',
+      this.handleMusicModeLocal
+    );
     this.ui.restartBtn?.removeEventListener('click', this.handleRestart);
     this.ui.zoomSlider?.removeEventListener('input', this.handleZoomInput);
     this.ui.zoomOutBtn?.removeEventListener('click', this.handleZoomOut);
@@ -268,6 +279,14 @@ export class Game {
     this.ui.guideEyeBtn?.addEventListener('click', this.handleGuideToggle);
     this.ui.musicBtn?.addEventListener('click', this.handleMusicToggle);
     this.ui.musicToolBtn?.addEventListener('click', this.handleMusicToggle);
+    this.ui.musicModeInteractive?.addEventListener(
+      'click',
+      this.handleMusicModeInteractive
+    );
+    this.ui.musicModeLocal?.addEventListener(
+      'click',
+      this.handleMusicModeLocal
+    );
     this.ui.restartBtn?.addEventListener('click', this.handleRestart);
     this.ui.zoomSlider?.addEventListener('input', this.handleZoomInput);
     this.ui.zoomOutBtn?.addEventListener('click', this.handleZoomOut);
@@ -1111,6 +1130,15 @@ export class Game {
     this.ui.guidesToggle.checked = Boolean(this.guides);
     this.ui.bgmVolume.value = String(Math.round(this.settings.bgmVolume * 100));
     this.ui.sfxVolume.value = String(Math.round(this.settings.sfxVolume * 100));
+    const interactiveMode = this.settings.musicMode !== 'local';
+    for (const [button, active] of [
+      [this.ui.musicModeInteractive, interactiveMode],
+      [this.ui.musicModeLocal, !interactiveMode]
+    ]) {
+      if (!button) continue;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    }
     this.renderClearCount();
     this.ui.bgmVolumeRow?.classList.toggle('is-disabled', !this.settings.bgm);
     this.ui.sfxVolumeRow?.classList.toggle('is-disabled', !this.settings.sfx);
@@ -1184,6 +1212,7 @@ export class Game {
       timeLimitMinutes,
       bgm: wantsBgm,
       bgmVolume: clamp(Number(this.ui.bgmVolume.value) / 100, 0, 1),
+      musicMode: this.settings.musicMode,
       musicTrackId: this.settings.musicTrackId,
       sfx: Boolean(this.ui.sfxToggle.checked),
       sfxVolume: clamp(Number(this.ui.sfxVolume.value) / 100, 0, 1),
@@ -1287,6 +1316,49 @@ export class Game {
     this.showToast(this.settings.bgm ? '背景音乐已开启' : '背景音乐已关闭', '', 1100);
   }
 
+  handleMusicModeInteractive() {
+    this.setMusicMode('interactive');
+  }
+
+  handleMusicModeLocal() {
+    this.setMusicMode('local');
+  }
+
+  setMusicMode(mode, { announce = true } = {}) {
+    if (mode !== 'local' && mode !== 'interactive') return;
+    this.audio.unlock();
+
+    if (mode === 'local') {
+      if (this.musicTracks.length === 0) {
+        this.showToast('先导入一首本地音乐，再切到本地音乐', '', 1800);
+        return;
+      }
+      const track =
+        this.musicTracks.find(
+          (candidate) => candidate.id === this.settings.musicTrackId
+        ) || this.musicTracks[0];
+      this.settings.musicMode = 'local';
+      this.settings.musicTrackId = track.id;
+      this.settings.bgm = true;
+      this.setActiveMusicTrack(track, true);
+      this.audio.applySettings(this.settings);
+      this.saveSettings();
+      this.syncSettingsForm();
+      this.updateHUD();
+      if (announce) this.showToast(`本地音乐：${track.name}`, '', 1400);
+      return;
+    }
+
+    this.settings.musicMode = 'interactive';
+    this.settings.bgm = true;
+    this.setActiveMusicTrack(null);
+    this.audio.applySettings(this.settings);
+    this.saveSettings();
+    this.syncSettingsForm();
+    this.updateHUD();
+    if (announce) this.showToast('互动乐章：D 大调卡农', '', 1400);
+  }
+
   async initMusicLibrary() {
     await this.musicLibrary.open();
     await this.refreshMusicLibrary({ persist: false });
@@ -1307,6 +1379,7 @@ export class Game {
       select.append(placeholder);
       select.disabled = true;
       if (this.ui.removeMusicBtn) this.ui.removeMusicBtn.disabled = true;
+      this.settings.musicMode = 'interactive';
       this.setActiveMusicTrack(null);
       this.settings.musicTrackId = null;
 
@@ -1330,7 +1403,12 @@ export class Game {
       if (this.ui.removeMusicBtn) this.ui.removeMusicBtn.disabled = false;
 
       this.settings.musicTrackId = chosen.id;
-      this.setActiveMusicTrack(chosen, play ?? this.settings.bgm);
+      if (this.settings.musicMode === 'local') {
+        this.setActiveMusicTrack(chosen, play ?? this.settings.bgm);
+      } else {
+        // 本地音乐库只作为备选，默认仍然是互动乐章
+        this.setActiveMusicTrack(null);
+      }
 
       if (this.ui.musicLibraryHint) {
         this.ui.musicLibraryHint.textContent = this.musicLibrary.persistent
@@ -1422,6 +1500,7 @@ export class Game {
     }
 
     this.settings.bgm = true;
+    this.settings.musicMode = 'local';
     await this.refreshMusicLibrary({
       selectId: added[0].id,
       persist: true,
@@ -1448,6 +1527,7 @@ export class Game {
     this.audio.unlock();
     this.settings.musicTrackId = id;
     this.settings.bgm = true;
+    this.settings.musicMode = 'local';
     this.setActiveMusicTrack(track, true);
     this.audio.applySettings(this.settings);
     this.saveSettings();
