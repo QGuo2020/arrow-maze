@@ -2005,6 +2005,7 @@ function loadSettings() {
     ),
     bgm: typeof raw.bgm === 'boolean' ? raw.bgm : defaults.bgm,
     bgmVolume: clamp(Number(raw.bgmVolume ?? defaults.bgmVolume), 0, 1),
+    musicMode: raw.musicMode === 'local' ? 'local' : 'interactive',
     musicTrackId: typeof raw.musicTrackId === 'string' ? raw.musicTrackId : null,
     sfx: typeof raw.sfx === 'boolean' ? raw.sfx : defaults.sfx,
     sfxVolume: clamp(Number(raw.sfxVolume ?? defaults.sfxVolume), 0, 1),
