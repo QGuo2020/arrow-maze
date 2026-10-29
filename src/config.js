@@ -111,7 +111,7 @@ export const CONFIG = Object.freeze({
     minZoom: 0.72,
     maxZoom: 3.2,
     wheelStep: 0.0016,
-    fitInset: { top: 108, right: 18, bottom: 150, left: 18 },
+    fitInset: { top: 8, right: 18, bottom: 8, left: 18 },
     panOverscroll: 26
   },
 

@@ -1652,7 +1652,26 @@ export class Game {
     });
   }
 
+  updateChromeInsets() {
+    const top = this.ui.hudTop?.getBoundingClientRect().height;
+    const bottom = this.ui.hudBottom?.getBoundingClientRect().height;
+    if (Number.isFinite(top) && top > 0) {
+      document.documentElement.style.setProperty(
+        '--chrome-top',
+        `${Math.ceil(top)}px`
+      );
+    }
+    if (Number.isFinite(bottom) && bottom > 0) {
+      document.documentElement.style.setProperty(
+        '--chrome-bottom',
+        `${Math.ceil(bottom)}px`
+      );
+    }
+  }
+
   resize() {
+    // 画布只占顶部 HUD 和底部工具栏之间的区域，缩放/平移都不会钻到菜单下面。
+    this.updateChromeInsets();
     const rect = this.canvas.getBoundingClientRect();
     const width = Math.max(1, rect.width);
     const height = Math.max(1, rect.height);
@@ -1872,16 +1891,13 @@ function distanceBetween(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-/** 短屏/小屏上压缩 HUD 留白，让棋盘尽可能大一些。 */
-function getFitInsets(width, height) {
+/**
+ * 画布本身已经避开了顶部/底部 HUD，所以这里只留一点呼吸边。
+ * 不能再把 HUD 的高度重复算进相机 inset，否则棋盘会被压得太小。
+ */
+function getFitInsets(width) {
   const side = width < 360 ? 8 : width < 520 ? 12 : 18;
-  if (height < 500) {
-    return { top: 64, right: side, bottom: 82, left: side };
-  }
-  if (height < 700) {
-    return { top: 88, right: side, bottom: 112, left: side };
-  }
-  return { ...CONFIG.camera.fitInset };
+  return { top: 8, right: side, bottom: 8, left: side };
 }
 
 function midpointOf(a, b) {

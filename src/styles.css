@@ -15,6 +15,8 @@
   --font-mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas, monospace;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --chrome-top: calc(96px + var(--safe-top));
+  --chrome-bottom: calc(92px + var(--safe-bottom));
 }
 
 * {
@@ -73,10 +75,11 @@ input:focus-visible {
 
 #game {
   position: absolute;
-  inset: 0;
+  top: var(--chrome-top);
+  left: 0;
   display: block;
   width: 100%;
-  height: 100%;
+  height: calc(100% - var(--chrome-top) - var(--chrome-bottom));
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -107,8 +110,8 @@ input:focus-visible {
   padding:
     calc(16px + var(--safe-top))
     clamp(14px, 3vw, 36px)
-    58px;
-  background: linear-gradient(to bottom, rgba(3, 7, 14, 0.78), rgba(3, 7, 14, 0));
+    8px;
+  background: linear-gradient(to bottom, rgba(3, 7, 14, 0.9), rgba(3, 7, 14, 0.35));
 }
 
 .hud-group {
@@ -321,10 +324,10 @@ input:focus-visible {
   align-items: center;
   gap: 7px;
   padding:
-    68px
+    8px
     clamp(10px, 2.5vw, 30px)
     calc(10px + var(--safe-bottom));
-  background: linear-gradient(to top, rgba(3, 6, 13, 0.95), rgba(3, 6, 13, 0));
+  background: linear-gradient(to top, rgba(3, 6, 13, 0.95), rgba(3, 6, 13, 0.35));
 }
 
 .toolbar {
@@ -1880,7 +1883,7 @@ input:focus-visible {
   }
 
   .hud-bottom {
-    padding-top: 38px;
+    padding-top: 8px;
   }
 
   .toast {
@@ -1935,13 +1938,18 @@ input:focus-visible {
 }
 
 @media (max-height: 540px) and (orientation: landscape) {
+  :root {
+    --chrome-top: calc(64px + var(--safe-top));
+    --chrome-bottom: calc(70px + var(--safe-bottom));
+  }
+
   .hud-top {
     padding-top: calc(7px + var(--safe-top));
-    padding-bottom: 26px;
+    padding-bottom: 8px;
   }
 
   .hud-bottom {
-    padding-top: 26px;
+    padding-top: 8px;
     padding-bottom: calc(6px + var(--safe-bottom));
   }
 

@@ -25,6 +25,8 @@ const ui = {
   zoomInBtn: document.querySelector('#zoomInBtn'),
   toast: document.querySelector('#toast'),
   keyBurstLayer: document.querySelector('#keyBurstLayer'),
+  hudTop: document.querySelector('.hud-top'),
+  hudBottom: document.querySelector('.hud-bottom'),
   damageFlash: document.querySelector('#damageFlash'),
   liveStatus: document.querySelector('#liveStatus'),
 
